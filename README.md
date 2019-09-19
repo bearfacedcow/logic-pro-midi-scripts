@@ -7,4 +7,6 @@ That's it!
 
 Hope you enjoy and may you make some geeky beautiful music!
 
+Licensing is whatever open source licensing. It's JavaScript and I know I wrote these scripts. Just make some freakin' music with it and if you like it, give me a shout out!
+
 jord
