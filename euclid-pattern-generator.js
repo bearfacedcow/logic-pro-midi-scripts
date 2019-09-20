@@ -22,6 +22,10 @@ var nextBeat = -1;
 
 var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 
+var PATTERN_BASE = 4;
+var PARAMETER_STEPS = 2;
+var PARAMETER_NOTES = 3;
+
 function ProcessMIDI() {
   // Get timing information from the host application
   var musicInfo = GetTimingInfo();
@@ -43,7 +47,7 @@ function ProcessMIDI() {
   if (activeNotes.length != 0 && wasPlaying) {
     // get parameters
     var division = getTime(GetParameter("Time"));
-    var noteLength = 0.8 * division;
+    var noteLength = getTime(GetParameter("Note Length"));
 
     // calculate beat to schedule
     var lookAheadEnd = musicInfo.blockEndBeat;
@@ -190,7 +194,7 @@ function getTime(index) {
 }
 
 function ParameterChanged(param, value) {
-  if (param > 0 && param < 3) {
+  if (param == PARAMETER_STEPS || param == PARAMETER_NOTES) {
     const pattern = [];
     const remainder = [];
     const steps = GetParameter("Steps");
@@ -221,7 +225,7 @@ function ParameterChanged(param, value) {
       type: "checkbox"
     }));
 
-    PluginParameters = PluginParameters.slice(0, 4);
+    PluginParameters = PluginParameters.slice(0, PATTERN_BASE);
     patternParameters.forEach(par => PluginParameters.push(par));
     UpdatePluginParameters();
 
@@ -250,7 +254,27 @@ var PluginParameters = [
       "1/2",
       "1/2 ."
     ],
-    defaultValue: 5,
+    defaultValue: 7,
+    numberOfSteps: 11
+  },
+  {
+    name: "Note Length",
+    type: "menu",
+    valueStrings: [
+      "1/16 T",
+      "1/16",
+      "1/16 .",
+      "1/8 T",
+      "1/8",
+      "1/8 .",
+      "1/4 T",
+      "1/4",
+      "1/4 .",
+      "1/2 T",
+      "1/2",
+      "1/2 ."
+    ],
+    defaultValue: 4,
     numberOfSteps: 11
   },
   {
