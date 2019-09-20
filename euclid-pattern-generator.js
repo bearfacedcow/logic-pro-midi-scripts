@@ -22,9 +22,10 @@ var nextBeat = -1;
 
 var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 
-var PATTERN_BASE = 4;
+var PATTERN_START = 6;
 var PARAMETER_STEPS = 2;
 var PARAMETER_NOTES = 3;
+var NOTES = MIDI._noteNames;				//array of MIDI note names for menu items
 
 function ProcessMIDI() {
   // Get timing information from the host application
@@ -63,8 +64,6 @@ function ProcessMIDI() {
         var cycleEnd = lookAheadEnd - cycleBeats;
       }
     }
-
-    // Trace( `Next beat: ${nextBeat} > Start beat: ${musicInfo.blockStartBeat} < lookAheadEnd: ${lookAheadEnd}` );
 
     // loop through the beats that fall within this buffer
     if (
@@ -225,7 +224,7 @@ function ParameterChanged(param, value) {
       type: "checkbox"
     }));
 
-    PluginParameters = PluginParameters.slice(0, PATTERN_BASE);
+    PluginParameters = PluginParameters.slice(0, PATTERN_START);
     patternParameters.forEach(par => PluginParameters.push(par));
     UpdatePluginParameters();
 
@@ -292,6 +291,18 @@ var PluginParameters = [
     maxValue: 32,
     numberOfSteps: 31,
     type: "linear"
+  },
+  {
+    name: "Select Note",
+    defaultValue: 0,
+    type: "checkbox"
+  },
+  {
+    name: "Note",
+    type: "menu",
+    valueStrings: NOTES,
+    defaultValue: 127,
+    numberOfSteps: 11
   },
   { name: "--------- Pattern --------", type: "text" }
 ];
