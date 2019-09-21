@@ -22,14 +22,36 @@ var nextBeat = -1;
 
 var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 
-var PATTERN_START = 6;
-var PARAMETER_STEPS = 2;
-var PARAMETER_NOTES = 3;
-var NOTES = MIDI._noteNames; //array of MIDI note names for menu items
+const PATTERN_START = 6;
+const PARAMETER_STEPS = 2;
+const PARAMETER_NOTES = 3;
+const NOTES = MIDI._noteNames; //array of MIDI note names for menu items
 
-function ProcessMIDI() {
+const notesParameter =  {
+  name: "Notes",
+  defaultValue: 2,
+  minValue: 1,
+  maxValue: 32,
+  numberOfSteps: 31,
+  type: "linear"
+};
+
+const stepsParameter = {
+  name: "Steps",
+  defaultValue: 16,
+  minValue: 1,
+  maxValue: 32,
+  numberOfSteps: 31,
+  type: "linear"
+};
+
+const patternParam =   { name: "---Pattern: --", type: "text" };
+
+
+function ProcessMIDI(){
   // Get timing information from the host application
   var musicInfo = GetTimingInfo();
+  const selectNote = GetParameter("Select Note");
 
   // clear activeNotes[] when the transport stops and send any remaining note off events
   if (wasPlaying && !musicInfo.playing) {
@@ -45,11 +67,10 @@ function ProcessMIDI() {
 
   wasPlaying = musicInfo.playing;
 
-  if (activeNotes.length != 0 && wasPlaying) {
+  if ((activeNotes.length != 0 || selectNote) && wasPlaying) {
     // get parameters
     var division = getTime(GetParameter("Time"));
     var noteLength = getTime(GetParameter("Note Length"));
-    var selectNote = GetParameter("Select Note");
     var theNote = GetParameter("Note");
 
     // calculate beat to schedule
@@ -206,6 +227,13 @@ function ParameterChanged(param, value) {
     const remainder = [];
     const steps = GetParameter("Steps");
     const notes = GetParameter("Notes");
+
+    if( notes > steps ) {
+      notes = steps;
+    }
+  
+    SetParameter("Notes", notes);
+
     const remainderFill = steps - notes;
 
     if ((steps == lastSteps && notes == lastNotes) || notes > steps) return;
@@ -224,22 +252,10 @@ function ParameterChanged(param, value) {
     rhythm = this.euclid(pattern, remainder);
 
     Trace(rhythm);
-    var patternCounter = 0;
 
-    const patternParameters = rhythm.map(val => ({
-      name: `Step ${patternCounter++}`,
-      defaultValue: val,
-      type: "checkbox"
-    }));
-
-    PluginParameters = PluginParameters.slice(0, PATTERN_START);
-    patternParameters.forEach(par => PluginParameters.push(par));
+    patternParam.name = `--- Pattern: ${rhythm.join("")} ---`;
     UpdatePluginParameters();
-
-    rhythm.forEach((val, index) => {
-      SetParameter(`Step ${index}`, val);
-    });
-  }
+   }
 }
 
 // define inital UI parameters
@@ -284,22 +300,9 @@ var PluginParameters = [
     defaultValue: 4,
     numberOfSteps: 11
   },
-  {
-    name: "Steps",
-    defaultValue: 16,
-    minValue: 1,
-    maxValue: 32,
-    numberOfSteps: 31,
-    type: "linear"
-  },
-  {
-    name: "Notes",
-    defaultValue: 2,
-    minValue: 1,
-    maxValue: 32,
-    numberOfSteps: 31,
-    type: "linear"
-  },
+  stepsParameter,
+  notesParameter,
+  patternParam,
   {
     name: "Select Note",
     defaultValue: 0,
@@ -309,8 +312,7 @@ var PluginParameters = [
     name: "Note",
     type: "menu",
     valueStrings: NOTES,
-    defaultValue: 127,
+    defaultValue: 36,
     numberOfSteps: 11
   },
-  { name: "--------- Pattern --------", type: "text" }
 ];
