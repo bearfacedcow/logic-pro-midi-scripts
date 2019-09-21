@@ -25,7 +25,7 @@ var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 var PATTERN_START = 6;
 var PARAMETER_STEPS = 2;
 var PARAMETER_NOTES = 3;
-var NOTES = MIDI._noteNames;				//array of MIDI note names for menu items
+var NOTES = MIDI._noteNames; //array of MIDI note names for menu items
 
 function ProcessMIDI() {
   // Get timing information from the host application
@@ -49,6 +49,8 @@ function ProcessMIDI() {
     // get parameters
     var division = getTime(GetParameter("Time"));
     var noteLength = getTime(GetParameter("Note Length"));
+    var selectNote = GetParameter("Select Note");
+    var theNote = GetParameter("Note");
 
     // calculate beat to schedule
     var lookAheadEnd = musicInfo.blockEndBeat;
@@ -77,17 +79,23 @@ function ProcessMIDI() {
       if (musicInfo.cycling && nextBeat >= musicInfo.rightCycleBeat)
         nextBeat -= cycleBeats;
 
-      // Trace( `Next beat: ${nextBeat}` );
       // play this step?
       if (rhythm[nextStep] && schedule) {
-        activeNotes.forEach(note => {
-          var noteOn = new NoteOn(note);
+        if (selectNote) {
+          var noteOn = new NoteOn(theNote);
           noteOn.sendAtBeat(nextBeat);
           var noteOff = new NoteOff(noteOn);
           noteOff.sendAtBeat(nextBeat + noteLength);
           schedule = false;
-          Trace(noteOn);
-        });
+        } else {
+          activeNotes.forEach(note => {
+            var noteOn = new NoteOn(note);
+            noteOn.sendAtBeat(nextBeat);
+            var noteOff = new NoteOff(noteOn);
+            noteOff.sendAtBeat(nextBeat + noteLength);
+            schedule = false;
+          });
+        }
       }
 
       // advance to next beat
