@@ -13,6 +13,7 @@ var activeNotes = [];
 
 var lastSteps = -1;
 var lastNotes = -1;
+var lastShift = -1;
 
 var wasPlaying = false;
 var nextStep = 0;
@@ -25,9 +26,10 @@ var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 const PATTERN_START = 6;
 const PARAMETER_STEPS = 2;
 const PARAMETER_NOTES = 3;
+const PARAMETER_SHIFT = 4;
 const NOTES = MIDI._noteNames; //array of MIDI note names for menu items
 
-const notesParameter =  {
+const notesParameter = {
   name: "Notes",
   defaultValue: 2,
   minValue: 1,
@@ -45,10 +47,18 @@ const stepsParameter = {
   type: "linear"
 };
 
-const patternParam =   { name: "---Pattern: --", type: "text" };
+const shiftParameter = {
+  name: "Shift",
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 8,
+  numberOfSteps: 8,
+  type: "linear"
+};
 
+const patternParam = { name: "---Pattern: --", type: "text" };
 
-function ProcessMIDI(){
+function ProcessMIDI() {
   // Get timing information from the host application
   var musicInfo = GetTimingInfo();
   const selectNote = GetParameter("Select Note");
@@ -222,24 +232,30 @@ function getTime(index) {
 }
 
 function ParameterChanged(param, value) {
-  if (param == PARAMETER_STEPS || param == PARAMETER_NOTES) {
+  if (param == PARAMETER_STEPS || param == PARAMETER_NOTES || param == PARAMETER_SHIFT) {
     const pattern = [];
     const remainder = [];
     const steps = GetParameter("Steps");
     const notes = GetParameter("Notes");
+    const shiftNotes = GetParameter("Shift");
 
-    if( notes > steps ) {
+    if (notes > steps) {
       notes = steps;
     }
-  
+
     SetParameter("Notes", notes);
 
     const remainderFill = steps - notes;
 
-    if ((steps == lastSteps && notes == lastNotes) || notes > steps) return;
+    if (
+      (steps == lastSteps && notes == lastNotes && shiftNotes == lastShift) ||
+      notes > steps
+    )
+      return;
 
     lastSteps = steps;
     lastNotes = notes;
+    lastShift = shiftNotes;
 
     for (var i = 0; i < remainderFill; i++) {
       remainder[i] = "0";
@@ -251,11 +267,17 @@ function ParameterChanged(param, value) {
 
     rhythm = this.euclid(pattern, remainder);
 
+    if (shiftNotes) {
+      const patternToShift = shiftNotes < steps ? shiftNotes : steps - 1;
+      const shiftPattern = rhythm.slice(0, patternToShift);
+
+      rhythm = rhythm.slice(patternToShift).concat(shiftPattern);
+    }
     Trace(rhythm);
 
     patternParam.name = `--- Pattern: ${rhythm.join("")} ---`;
     UpdatePluginParameters();
-   }
+  }
 }
 
 // define inital UI parameters
@@ -302,6 +324,7 @@ var PluginParameters = [
   },
   stepsParameter,
   notesParameter,
+  shiftParameter,
   patternParam,
   {
     name: "Select Note",
@@ -314,5 +337,5 @@ var PluginParameters = [
     valueStrings: NOTES,
     defaultValue: 36,
     numberOfSteps: 11
-  },
+  }
 ];
