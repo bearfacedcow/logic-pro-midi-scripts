@@ -222,8 +222,11 @@ function ParameterChanged(param, value) {
 
     const remainderFill = steps - notes;
 
+    if (steps == patternObject.lastSteps && notes == patternObject.lastNotes && shiftNotes == patternObject.lastShift) return;
+
     patternObject.lastSteps = steps;
     patternObject.lastNotes = notes;
+    patternObject.lastShift = shiftNotes;
 
     for (var i = 0; i < remainderFill; i++) {
       remainder[i] = "0";
@@ -358,8 +361,8 @@ for (var set = 0; set < MAX_NOTES; set++) {
     rhythm: [],
     lastNotes: -1,
     lastSteps: -1,
+    lastShift: -1,
     schedule: true,
-    nextBezt: -1,
     nextStep: 0,
     notes: notesParameter,
     steps: stepsParameter,
