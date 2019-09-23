@@ -56,6 +56,16 @@ const shiftParameter = {
   type: "linear"
 };
 
+const humanizeParameter = {
+  name: `Humanize`,
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 25,
+  numberOfSteps: 250,
+  type: "linear",
+  unit: "%"
+};
+
 const patternParam = { name: "---Pattern: --", type: "text" };
 
 function ProcessMIDI() {
@@ -82,6 +92,7 @@ function ProcessMIDI() {
     var division = getTime(GetParameter("Time"));
     var noteLength = getTime(GetParameter("Note Length"));
     var theNote = GetParameter("Note");
+    var humanize = GetParameter("Humanize");
 
     // calculate beat to schedule
     var lookAheadEnd = musicInfo.blockEndBeat;
@@ -113,15 +124,32 @@ function ProcessMIDI() {
       // play this step?
       if (rhythm[nextStep] && schedule) {
         if (selectNote) {
+          const humanizeVel =
+            (Math.round(Math.random() * (humanize * 2)) - humanize) / 100;
+          const humanizeBeat =
+            ((Math.random() * (humanize * 2) - humanize) / 100) * division;
+
           var noteOn = new NoteOn(theNote);
-          noteOn.sendAtBeat(nextBeat);
+          noteOn.pitch = theNote;
+          noteOn.velocity += noteOn.velocity * humanizeVel;
+          if (noteOn.velocity > 127) noteOn.velocity = 127;
+
+          noteOn.sendAtBeat(nextBeat + humanizeBeat);
           var noteOff = new NoteOff(noteOn);
           noteOff.sendAtBeat(nextBeat + noteLength);
           schedule = false;
         } else {
           activeNotes.forEach(note => {
+            const humanizeVel =
+              (Math.round(Math.random() * (humanize * 2)) - humanize) / 100;
+            const humanizeBeat =
+              ((Math.random() * (humanize * 2) - humanize) / 100) * division;
+
             var noteOn = new NoteOn(note);
-            noteOn.sendAtBeat(nextBeat);
+            noteOn.velocity += noteOn.velocity * humanizeVel;
+            if (noteOn.velocity > 127) noteOn.velocity = 127;
+
+            noteOn.sendAtBeat(nextBeat + humanizeBeat);
             var noteOff = new NoteOff(noteOn);
             noteOff.sendAtBeat(nextBeat + noteLength);
             schedule = false;
@@ -232,7 +260,11 @@ function getTime(index) {
 }
 
 function ParameterChanged(param, value) {
-  if (param == PARAMETER_STEPS || param == PARAMETER_NOTES || param == PARAMETER_SHIFT) {
+  if (
+    param == PARAMETER_STEPS ||
+    param == PARAMETER_NOTES ||
+    param == PARAMETER_SHIFT
+  ) {
     const pattern = [];
     const remainder = [];
     const steps = GetParameter("Steps");
@@ -325,6 +357,7 @@ var PluginParameters = [
   stepsParameter,
   notesParameter,
   shiftParameter,
+  humanizeParameter,
   patternParam,
   {
     name: "Select Note",
