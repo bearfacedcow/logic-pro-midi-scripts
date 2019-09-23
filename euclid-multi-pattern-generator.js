@@ -1,9 +1,11 @@
 /*
-Euclid Pattern Generator
+Euclid Multi Pattern Generator
 Jordan L. Chilcott
 
 A MIDI JavaScript for Logic Pro X based on a Euclidean algorithm to evenly distribute rhythmic
 pattern, given a total pattern length and the number of notes within that pattern.
+
+This script is useful for drum and percussion libraries.
 
 This is a work in progress and will be updated as time goes by. Have fun.
 */
@@ -19,7 +21,7 @@ var nextBeat = -1;
 
 var NeedsTimingInfo = true; /* needed for GetTimingInfo to work */
 
-const PATTERN_START = 2;
+const PATTERN_START = 3;
 const PARAMETER_STEPS = 2;
 const PARAMETER_NOTES = 3;
 const NOTES = MIDI._noteNames; //array of MIDI note names for menu items
@@ -52,8 +54,9 @@ function ProcessMIDI() {
 
   if (activeNotes.length && wasPlaying) {
     // get parameters
-    var division = getTime(GetParameter("Time"));
-    var noteLength = getTime(GetParameter("Note Length"));
+    const division = getTime(GetParameter("Time"));
+    const noteLength = getTime(GetParameter("Note Length"));
+    const humanize = GetParameter("Humanize");
 
     // calculate beat to schedule
     var lookAheadEnd = musicInfo.blockEndBeat;
@@ -84,29 +87,38 @@ function ProcessMIDI() {
 
       activeNotes.forEach(activeNote => {
         // play this step?
+        const humanizeVel = (Math.round(Math.random() * (humanize * 2)) - humanize) / 100;
+        const humanizeBeat = ((Math.random() * (humanize * 2) - humanize) / 100) * division;
+
         if (activeNote.rhythm[activeNote.nextStep] && activeNote.schedule) {
           var theNote = GetParameter(activeNote.noteSelection.name);
           var velocity = GetParameter(activeNote.velocity.name);
+
+          velocity += (velocity * humanizeVel);
+
           var noteOn = new NoteOn(theNote);
           noteOn.pitch = theNote;
-          noteOn.velocity = velocity;
+          noteOn.velocity = velocity > 127 ? 127 : velocity ;
 
-          noteOn.sendAtBeat(nextBeat);
+          noteOn.sendAtBeat(nextBeat + humanizeBeat);
           var noteOff = new NoteOff(noteOn);
           noteOff.sendAtBeat(nextBeat + noteLength);
           activeNote.schedule = false;
         }
 
-        // advance to next beat
-        activeNote.nextStep += 1;
-        if (activeNote.nextStep >= activeNote.rhythm.length) {
-          activeNote.nextStep = 0;
-        }
       });
 
       nextBeat += division;
-      activeNotes.forEach(activeNote => {
-        activeNote.schedule = true;
+
+      // Housekeeper
+      parameterSet.forEach( param => {
+        // advance to next beat
+        param.nextStep += 1;
+        if (param.nextStep >= param.rhythm.length) {
+          param.nextStep = 0;
+        }
+
+        param.schedule = true;
       });
     }
   }
@@ -295,7 +307,16 @@ var PluginParameters = [
     ],
     defaultValue: 4,
     numberOfSteps: 11
-  }
+  },
+  {
+    name: `Humanize`,
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 25,
+    numberOfSteps: 250,
+    type: "linear",
+    unit: "%",
+  },
 ];
 
 for (var set = 0; set < MAX_NOTES; set++) {
