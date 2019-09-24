@@ -220,13 +220,30 @@ function ProcessMIDI() {
   }
 }
 
+function sortNotes() {
+  activeNotes.sort( (a, b) => {
+    var result = 0;
+    if(a.pitch > b.pitch) {
+      result = 1;
+    }
+
+    if(a.pitch < b.pitch) {
+      result = -1
+    }
+
+    return result;
+  });
+}
+
 function HandleMIDI(event) {
   var info = GetTimingInfo();
   if (event instanceof NoteOn) {
     // add note to array
     activeNotes.push(event);
+    sortNotes();
   } else if (event instanceof NoteOff) {
     activeNotes = activeNotes.filter(note => note.pitch != event.pitch);
+    sortNotes();
   } else {
     event.send();
   }
