@@ -26,7 +26,11 @@ const PARAMETER_STEPS = 2;
 const PARAMETER_NOTES = 3;
 const NOTES = MIDI._noteNames; //array of MIDI note names for menu items
 const MAX_NOTES = 8;
-const OBJ_NUM_PARAMS = 7;
+const OBJ_NUM_PARAMS = 8;
+
+const DIRECTION_FORWARD = 0;
+const DIRECTION_BACKWARD = 1;
+const DIRECTION_PENDULUM = 2;
 
 function ProcessMIDI() {
   // Get timing information from the host application
@@ -87,37 +91,51 @@ function ProcessMIDI() {
 
       activeNotes.forEach(activeNote => {
         // play this step?
-        const humanizeVel = (Math.round(Math.random() * (humanize * 2)) - humanize) / 100;
-        const humanizeBeat = ((Math.random() * (humanize * 2) - humanize) / 100) * division;
+        const humanizeVel =
+          (Math.round(Math.random() * (humanize * 2)) - humanize) / 100;
+        const humanizeBeat =
+          ((Math.random() * (humanize * 2) - humanize) / 100) * division;
 
         if (activeNote.rhythm[activeNote.nextStep] && activeNote.schedule) {
           var theNote = GetParameter(activeNote.noteSelection.name);
           var velocity = GetParameter(activeNote.velocity.name);
 
-          velocity += (velocity * humanizeVel);
+          velocity += velocity * humanizeVel;
 
           var noteOn = new NoteOn(theNote);
           noteOn.pitch = theNote;
-          noteOn.velocity = velocity > 127 ? 127 : velocity ;
+          noteOn.velocity = velocity > 127 ? 127 : velocity;
 
           noteOn.sendAtBeat(nextBeat + humanizeBeat);
           var noteOff = new NoteOff(noteOn);
           noteOff.sendAtBeat(nextBeat + noteLength);
           activeNote.schedule = false;
         }
-
       });
 
       nextBeat += division;
 
-      // Housekeeper
-      parameterSet.forEach( param => {
+      // Housekeeping
+      parameterSet.forEach(param => {
         // advance to next beat
-        param.nextStep += 1;
+        param.nextStep += param.stepDirection;
         if (param.nextStep >= param.rhythm.length) {
-          param.nextStep = 0;
+          if(param.stepPendulum) {
+            param.stepDirection = -1;
+            param.nextStep += param.stepDirection;
+          } else {
+            param.nextStep = 0;
+          }
         }
 
+        if( param.nextStep < 0 ) {
+          if( param.stepPendulum ) {
+            param.stepDirection = 1;
+            param.nextStep += param.stepDirection;
+          } else {
+            param.nextStep = param.rhythm.length - 1;
+          }
+        }
         param.schedule = true;
       });
     }
@@ -225,6 +243,7 @@ function ParameterChanged(param, value) {
     const steps = GetParameter(patternObject.steps.name);
     const notes = GetParameter(patternObject.notes.name);
     const shiftNotes = GetParameter(patternObject.shiftNotes.name);
+    const menuDirection = GetParameter(patternObject.direction.name);
 
     if (notes > steps) {
       notes = steps;
@@ -234,11 +253,18 @@ function ParameterChanged(param, value) {
 
     const remainderFill = steps - notes;
 
-    if (steps == patternObject.lastSteps && notes == patternObject.lastNotes && shiftNotes == patternObject.lastShift) return;
+    if (
+      steps == patternObject.lastSteps &&
+      notes == patternObject.lastNotes &&
+      shiftNotes == patternObject.lastShift &&
+      menuDirection == patternObject.lastDirection
+    )
+      return;
 
     patternObject.lastSteps = steps;
     patternObject.lastNotes = notes;
     patternObject.lastShift = shiftNotes;
+    patternObject.lastDirection = menuDirection;
 
     for (var i = 0; i < remainderFill; i++) {
       remainder[i] = "0";
@@ -250,19 +276,29 @@ function ParameterChanged(param, value) {
 
     patternObject.rhythm = this.euclid(pattern, remainder);
 
-    if(shiftNotes) {
+    if (shiftNotes) {
       const patternToShift = shiftNotes < steps ? shiftNotes : steps - 1;
       const shiftPattern = patternObject.rhythm.slice(0, patternToShift);
 
-      patternObject.rhythm = patternObject.rhythm.slice(patternToShift).concat(shiftPattern);
+      patternObject.rhythm = patternObject.rhythm
+        .slice(patternToShift)
+        .concat(shiftPattern);
     }
 
     Trace(
       `Rhythm #${patternObjectIndex + 1}: ${patternObject.rhythm.join(",")}`
     );
 
-    // patternObject.pattern.name = `--- Pattern ${patternObjectIndex}: ${patternObject.rhythm.join("")} ---`;
-    // UpdatePluginParameters();
+    if (menuDirection == DIRECTION_PENDULUM) {
+      patternObject.stepPendulum = true;
+      patternObject.stepDirection = 1;
+    } else if (menuDirection == DIRECTION_BACKWARD) {
+      patternObject.stepPendulum = false;
+      patternObject.stepDirection = -1;
+    } else {
+      patternObject.stepPendulum = false;
+      patternObject.stepDirection = 1;
+    }
   }
 }
 
@@ -315,8 +351,8 @@ var PluginParameters = [
     maxValue: 25,
     numberOfSteps: 250,
     type: "linear",
-    unit: "%",
-  },
+    unit: "%"
+  }
 ];
 
 for (var set = 0; set < MAX_NOTES; set++) {
@@ -370,12 +406,19 @@ for (var set = 0; set < MAX_NOTES; set++) {
     type: "linear"
   };
 
-  const patternMarker = {
-    name: `------------ Pattern ${set +1} ------------`,
-    type: "text"
-  }
+  const directionParameter = {
+    name: `Direction ${set + 1}`,
+    type: "menu",
+    valueStrings: ["Forward", "Backward", "Pendulum"],
+    defaultValue: 0,
+    numberOfSteps: 3
+  };
 
-  127;
+  const patternMarker = {
+    name: `------------ Pattern ${set + 1} ------------`,
+    type: "text"
+  };
+
   const param = {
     set: set,
     base: OBJ_NUM_PARAMS * set + PATTERN_START,
@@ -383,15 +426,19 @@ for (var set = 0; set < MAX_NOTES; set++) {
     lastNotes: -1,
     lastSteps: -1,
     lastShift: -1,
+    lastDirection: -1,
     schedule: true,
     nextStep: 0,
+    stepDirection: 1,
+    stepPendulum: false,
     notes: notesParameter,
     steps: stepsParameter,
+    direction: directionParameter,
     shiftNotes: shiftParameter,
     play: playNote,
     noteSelection: noteSelectionParam,
     velocity: velocityParameter,
-    marker: patternMarker,
+    marker: patternMarker
   };
 
   parameterSet.push(param);
@@ -402,6 +449,7 @@ parameterSet.forEach(theParam => {
   PluginParameters.push(theParam.steps);
   PluginParameters.push(theParam.notes);
   PluginParameters.push(theParam.shiftNotes);
+  PluginParameters.push(theParam.direction);
   PluginParameters.push(theParam.play);
   PluginParameters.push(theParam.noteSelection);
   PluginParameters.push(theParam.velocity);
