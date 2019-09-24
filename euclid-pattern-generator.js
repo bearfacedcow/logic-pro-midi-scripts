@@ -87,7 +87,7 @@ function ProcessMIDI() {
 
   wasPlaying = musicInfo.playing;
 
-  if ((activeNotes.length != 0 || selectNote) && wasPlaying) {
+  if (wasPlaying) {
     // get parameters
     var division = getTime(GetParameter("Time"));
     var noteLength = getTime(GetParameter("Note Length"));
@@ -120,7 +120,7 @@ function ProcessMIDI() {
       // adjust for cycle
       if (musicInfo.cycling && nextBeat >= musicInfo.rightCycleBeat)
         nextBeat -= cycleBeats;
-
+        if (activeNotes.length != 0 || selectNote) {
       // play this step?
       if (rhythm[nextStep] && schedule) {
         if (selectNote) {
@@ -156,6 +156,7 @@ function ProcessMIDI() {
           });
         }
       }
+    }
 
       // advance to next beat
       nextStep += 1;
